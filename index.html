@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Open Cookbook</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="site-config.js"></script>
+  </head>
+  <body>
+    <header class="site-header">
+      <div>
+        <h1 id="cookbook-title">Open Cookbook</h1>
+        <p>A simple single-cookbook recipe site.</p>
+      </div>
+      <div class="header-actions">
+        <button id="new-recipe" type="button">New recipe</button>
+        <button id="print-cookbook" type="button">Print cookbook</button>
+      </div>
+    </header>
+
+    <main class="layout">
+      <aside class="sidebar" aria-label="Recipe list">
+        <label class="field">
+          Search
+          <input id="recipe-search" type="search" placeholder="Recipe, ingredient, or step" />
+        </label>
+        <div class="backup-actions">
+          <button id="export-json" type="button">Export JSON</button>
+          <label class="file-button">
+            Import JSON
+            <input id="import-json" type="file" accept="application/json" />
+          </label>
+        </div>
+        <div id="recipe-list" class="recipe-list"></div>
+      </aside>
+
+      <section class="editor" aria-label="Recipe editor">
+        <form id="recipe-form">
+          <div class="editor-header">
+            <label class="field">
+              Recipe name
+              <input id="recipe-name" required />
+            </label>
+            <button id="delete-recipe" class="danger" type="button">Delete</button>
+          </div>
+
+          <section>
+            <div class="section-heading">
+              <h2>Ingredients</h2>
+              <button id="add-ingredient" type="button">Add ingredient</button>
+            </div>
+            <div id="ingredients"></div>
+          </section>
+
+          <section>
+            <div class="section-heading">
+              <h2>Directions</h2>
+              <button id="add-step" type="button">Add step</button>
+            </div>
+            <div id="directions"></div>
+          </section>
+
+          <label class="field">
+            Notes
+            <textarea id="recipe-notes" rows="5" placeholder="Optional serving notes, source, timing, or family context"></textarea>
+          </label>
+
+          <div class="form-actions">
+            <button type="submit">Save recipe</button>
+            <button id="print-recipe" type="button">Print recipe</button>
+          </div>
+          <p id="status" role="status"></p>
+        </form>
+      </section>
+    </main>
+
+    <template id="ingredient-template">
+      <div class="row">
+        <input data-field="amount" placeholder="Amount" aria-label="Ingredient amount" />
+        <input data-field="item" placeholder="Ingredient" aria-label="Ingredient name" />
+        <button class="remove-row" type="button" aria-label="Remove ingredient">Remove</button>
+      </div>
+    </template>
+
+    <template id="direction-template">
+      <div class="row step-row">
+        <textarea data-field="text" rows="3" placeholder="Step"></textarea>
+        <button class="remove-row" type="button" aria-label="Remove step">Remove</button>
+      </div>
+    </template>
+
+    <script src="app.js"></script>
+  </body>
+</html>
