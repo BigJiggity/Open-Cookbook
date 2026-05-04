@@ -1,0 +1,13 @@
+{
+  "name": "open-cookbook-azure-functions",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "src/functions/*.js",
+  "dependencies": {
+    "@azure/data-tables": "^13.3.1",
+    "@azure/functions": "^4.5.0"
+  },
+  "scripts": {
+    "start": "func start"
+  }
+}

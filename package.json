@@ -5,6 +5,6 @@
   "license": "PolyForm-Noncommercial-1.0.0",
   "scripts": {
     "setup": "node scripts/setup.mjs",
-    "check": "node --check app.js && node --check scripts/setup.mjs"
+    "check": "node --check app.js && node --check scripts/setup.mjs && node --check server/azure/functions/src/functions/cookbook.js"
   }
 }

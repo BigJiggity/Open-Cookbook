@@ -1,0 +1,5 @@
+location = "eastus"
+resource_group_name = "open-cookbook-rg"
+storage_account_name = "opencookbooksite"
+function_app_name = "open-cookbook-api"
+cookbook_table_name = "cookbook"

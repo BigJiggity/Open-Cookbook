@@ -1,9 +1,10 @@
 const config = window.OPEN_COOKBOOK_CONFIG || {};
-const storageKey = config.storageKey || "open-cookbook:data:v1";
+const apiUrl = config.apiBaseUrl || "/api/cookbook.php";
 
 const state = {
   selectedRecipeId: "",
-  recipes: []
+  recipes: [],
+  isLoaded: false
 };
 
 const $ = (selector) => document.querySelector(selector);
@@ -19,32 +20,47 @@ function emptyRecipe() {
   };
 }
 
-function loadState() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(storageKey) || "{}");
-    state.recipes = Array.isArray(saved.recipes) ? saved.recipes : [];
-    state.selectedRecipeId = saved.selectedRecipeId || state.recipes[0]?.id || "";
-  } catch {
-    state.recipes = [];
-    state.selectedRecipeId = "";
-  }
-
-  if (state.recipes.length === 0) {
-    const recipe = emptyRecipe();
-    state.recipes = [recipe];
-    state.selectedRecipeId = recipe.id;
-    saveState();
-  }
+function defaultCookbookState() {
+  const recipe = emptyRecipe();
+  return {
+    selectedRecipeId: recipe.id,
+    recipes: [recipe]
+  };
 }
 
-function saveState() {
-  localStorage.setItem(
-    storageKey,
-    JSON.stringify({
-      selectedRecipeId: state.selectedRecipeId,
-      recipes: state.recipes
-    })
-  );
+async function apiRequest(method, body) {
+  const response = await fetch(apiUrl, {
+    method,
+    headers: { "Content-Type": "application/json" },
+    body: body ? JSON.stringify(body) : undefined
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload.message || `API request failed with ${response.status}`);
+  }
+  return payload;
+}
+
+async function loadState() {
+  const saved = await apiRequest("GET");
+  state.recipes = Array.isArray(saved.recipes) ? saved.recipes : [];
+  state.selectedRecipeId = saved.selectedRecipeId || state.recipes[0]?.id || "";
+
+  if (state.recipes.length === 0) {
+    const initialState = defaultCookbookState();
+    state.recipes = initialState.recipes;
+    state.selectedRecipeId = initialState.selectedRecipeId;
+    await saveState();
+  }
+
+  state.isLoaded = true;
+}
+
+async function saveState() {
+  await apiRequest("PUT", {
+    selectedRecipeId: state.selectedRecipeId,
+    recipes: state.recipes
+  });
 }
 
 function selectedRecipe() {
@@ -128,14 +144,14 @@ function render() {
   renderEditor();
 }
 
-function updateSelectedRecipe(patch) {
+async function updateSelectedRecipe(patch) {
   const id = selectedRecipe()?.id;
   if (!id) return;
 
   state.recipes = state.recipes.map((recipe) =>
     recipe.id === id ? { ...recipe, ...patch, updatedAt: new Date().toISOString() } : recipe
   );
-  saveState();
+  await saveState();
   renderRecipeList();
 }
 
@@ -158,18 +174,18 @@ function showStatus(message) {
   $("#status").textContent = message;
   window.setTimeout(() => {
     if ($("#status").textContent === message) $("#status").textContent = "";
-  }, 2400);
+  }, 3000);
 }
 
-function addRecipe() {
+async function addRecipe() {
   const recipe = emptyRecipe();
   state.recipes.unshift(recipe);
   state.selectedRecipeId = recipe.id;
-  saveState();
+  await saveState();
   render();
 }
 
-function deleteRecipe() {
+async function deleteRecipe() {
   const recipe = selectedRecipe();
   if (!recipe) return;
   const confirmed = window.confirm(`Delete "${recipe.name || "Untitled recipe"}"?`);
@@ -180,7 +196,7 @@ function deleteRecipe() {
     state.recipes = [emptyRecipe()];
   }
   state.selectedRecipeId = state.recipes[0].id;
-  saveState();
+  await saveState();
   render();
 }
 
@@ -208,13 +224,13 @@ async function importJson(file) {
   }
   state.recipes = recipes;
   state.selectedRecipeId = recipes[0].id;
-  saveState();
+  await saveState();
   render();
   showStatus("Recipes imported.");
 }
 
-$("#new-recipe").addEventListener("click", addRecipe);
-$("#delete-recipe").addEventListener("click", deleteRecipe);
+$("#new-recipe").addEventListener("click", () => addRecipe().catch((error) => showStatus(error.message)));
+$("#delete-recipe").addEventListener("click", () => deleteRecipe().catch((error) => showStatus(error.message)));
 $("#recipe-search").addEventListener("input", renderRecipeList);
 $("#print-cookbook").addEventListener("click", () => window.print());
 $("#print-recipe").addEventListener("click", () => window.print());
@@ -224,19 +240,19 @@ $("#import-json").addEventListener("change", (event) => {
   event.target.value = "";
 });
 
-$("#recipe-list").addEventListener("click", (event) => {
+$("#recipe-list").addEventListener("click", async (event) => {
   const button = event.target.closest("[data-recipe-id]");
   if (!button) return;
   state.selectedRecipeId = button.dataset.recipeId;
-  saveState();
+  await saveState();
   render();
 });
 
-$("#recipe-form").addEventListener("submit", (event) => {
+$("#recipe-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   const ingredients = collectIngredients();
   const directions = collectDirections();
-  updateSelectedRecipe({
+  await updateSelectedRecipe({
     name: $("#recipe-name").value.trim() || "Untitled recipe",
     ingredients: ingredients.length ? ingredients : [{ amount: "", item: "" }],
     directions: directions.length ? directions : [""],
@@ -261,5 +277,9 @@ document.addEventListener("click", (event) => {
   row.remove();
 });
 
-loadState();
-render();
+loadState()
+  .then(render)
+  .catch((error) => {
+    showStatus(`Storage backend unavailable: ${error.message}`);
+    $("#recipe-list").innerHTML = "<p>Storage backend unavailable.</p>";
+  });

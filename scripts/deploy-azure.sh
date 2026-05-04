@@ -2,10 +2,10 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-TERRAFORM_DIR="${REPO_ROOT}/infrastructure/terraform"
+TERRAFORM_DIR="${REPO_ROOT}/infrastructure/azure/terraform"
 
-command -v aws >/dev/null 2>&1 || {
-  echo "aws CLI is required." >&2
+command -v az >/dev/null 2>&1 || {
+  echo "Azure CLI is required." >&2
   exit 1
 }
 
@@ -24,8 +24,9 @@ command -v python3 >/dev/null 2>&1 || {
   exit 1
 }
 
-SITE_BUCKET="$(cd "${TERRAFORM_DIR}" && terraform output -raw site_bucket_name)"
-DISTRIBUTION_ID="$(cd "${TERRAFORM_DIR}" && terraform output -raw cloudfront_distribution_id)"
+STORAGE_ACCOUNT="$(cd "${TERRAFORM_DIR}" && terraform output -raw storage_account_name)"
+RESOURCE_GROUP="$(cd "${TERRAFORM_DIR}" && terraform output -raw resource_group_name)"
+FUNCTION_APP="$(cd "${TERRAFORM_DIR}" && terraform output -raw function_app_name)"
 API_BASE_URL="$(cd "${TERRAFORM_DIR}" && terraform output -raw api_base_url)"
 COOKBOOK_TITLE="$(
   cd "${REPO_ROOT}" &&
@@ -49,8 +50,17 @@ print(f"  apiBaseUrl: {json.dumps('${API_BASE_URL}')}")
 print("};")
 PY
 
-aws s3 sync "${TMP_DIR}/" "s3://${SITE_BUCKET}" --delete
-aws cloudfront create-invalidation --distribution-id "${DISTRIBUTION_ID}" --paths "/*" >/dev/null
+az storage blob upload-batch \
+  --account-name "${STORAGE_ACCOUNT}" \
+  --destination '$web' \
+  --source "${TMP_DIR}" \
+  --overwrite true
 
-echo "Uploaded Open Cookbook to s3://${SITE_BUCKET}"
-echo "CloudFront invalidation created for ${DISTRIBUTION_ID}"
+if command -v func >/dev/null 2>&1; then
+  (cd "${REPO_ROOT}/server/azure/functions" && npm install && func azure functionapp publish "${FUNCTION_APP}" --javascript)
+else
+  echo "Azure Functions Core Tools was not found. Install it, then run:" >&2
+  echo "  cd server/azure/functions && npm install && func azure functionapp publish ${FUNCTION_APP} --javascript" >&2
+fi
+
+echo "Uploaded Open Cookbook to Azure Storage account ${STORAGE_ACCOUNT} in ${RESOURCE_GROUP}."

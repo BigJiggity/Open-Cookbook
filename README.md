@@ -5,9 +5,9 @@ Open Cookbook is a small, single-cookbook recipe website. It keeps the feature s
 - Create, edit, print, and delete recipes.
 - Add ingredients, directions, and optional notes.
 - Search recipes by name, ingredient, or direction text.
-- Store data in the browser with `localStorage`.
+- Store data in a backend API, not browser cache.
 - Export and import a JSON backup.
-- Deploy as a static website to AWS S3 and CloudFront.
+- Deploy to AWS, Azure, or a self-hosted server.
 
 This split intentionally excludes multi-user access, recipe sharing controls, social interaction features, paid-feature hooks, analytics, and original product branding.
 
@@ -22,21 +22,77 @@ node scripts/setup.mjs
 The setup helper asks for:
 
 - cookbook title
-- browser storage key
-- optional AWS region
-- optional S3 bucket name
-- optional custom domain and Route 53 hosted zone ID
+- deployment target: `aws`, `azure`, or `local`
+- provider-specific cloud or server settings
 
-Then run the site locally:
+## Deployment Targets
+
+### AWS
+
+AWS deploys:
+
+- S3 private static site bucket
+- CloudFront distribution
+- DynamoDB cookbook table
+- Lambda cookbook API
+- API Gateway HTTP API
+- optional ACM certificate and Route 53 records
 
 ```bash
-python3 -m http.server 3000
+node scripts/setup.mjs
+cd infrastructure/terraform
+terraform init
+terraform apply
+cd ../..
+./scripts/deploy.sh
+```
+
+### Azure
+
+Azure deploys:
+
+- Storage Account static website
+- Azure Table Storage cookbook table
+- Linux Azure Function App cookbook API
+
+```bash
+node scripts/setup.mjs
+cd infrastructure/azure/terraform
+terraform init
+terraform apply
+cd ../../..
+./scripts/deploy-azure.sh
+```
+
+The Azure deploy script uses Azure CLI for static upload and Azure Functions Core Tools for function publishing.
+
+### Local Server
+
+The local server path runs Apache, PHP, and MariaDB. MariaDB stores the cookbook as a JSON document in an open-source backend instead of saving recipes in the browser.
+
+Fast Docker-based local run:
+
+```bash
+node scripts/setup.mjs
+docker compose --env-file .env -f server/local/docker-compose.yml up -d
 ```
 
 Open:
 
 ```text
-http://localhost:3000
+http://localhost:8080
+```
+
+Native local install helpers:
+
+```bash
+./scripts/install-local-server.sh
+```
+
+Windows PowerShell:
+
+```powershell
+.\scripts\install-local-server.ps1
 ```
 
 ## Windows Setup
@@ -59,28 +115,6 @@ scripts\setup.bat
 ./scripts/setup.sh
 ```
 
-## Deploy To AWS
-
-1. Install Terraform and the AWS CLI.
-2. Configure AWS credentials.
-3. Run setup so `infrastructure/terraform/terraform.tfvars` exists.
-4. Deploy infrastructure:
-
-```bash
-cd infrastructure/terraform
-terraform init
-terraform apply
-```
-
-5. Upload the static app:
-
-```bash
-cd ../..
-./scripts/deploy.sh
-```
-
-If you configured a custom domain, Terraform creates the Route 53 alias records and ACM certificate. If not, use the CloudFront domain from Terraform output.
-
 ## Project Layout
 
 ```text
@@ -92,10 +126,18 @@ If you configured a custom domain, Terraform creates the Route 53 alias records 
 ├── site-config.js
 ├── scripts/
 │   ├── deploy.sh
+│   ├── deploy-azure.sh
+│   ├── install-local-server.sh
+│   ├── install-local-server.ps1
 │   ├── setup.bat
 │   ├── setup.mjs
 │   └── setup.ps1
+├── server/
+│   ├── aws/
+│   ├── azure/
+│   └── local/
 └── infrastructure/
+    ├── azure/
     └── terraform/
         ├── main.tf
         ├── outputs.tf
@@ -105,9 +147,13 @@ If you configured a custom domain, Terraform creates the Route 53 alias records 
 
 ## Data Storage
 
-Recipes are stored locally in the user's browser under the configured storage key. Use **Export JSON** before changing browsers or clearing browser storage. Use **Import JSON** to restore a saved backup.
+Recipes are stored in the configured backend:
 
-This open version does not include a shared database. That keeps the project low cost and removes multi-user, monetization, and account-management features.
+- AWS: DynamoDB through Lambda and API Gateway
+- Azure: Azure Table Storage through Azure Functions
+- Local server: MariaDB through a PHP API
+
+The browser keeps recipes in memory only while the page is open. It does not persist cookbook data to `localStorage`, IndexedDB, cookies, or another browser cache. Use **Export JSON** and **Import JSON** for manual backup movement between deployments.
 
 ## License
 

@@ -1,4 +1,4 @@
 window.OPEN_COOKBOOK_CONFIG = {
   cookbookTitle: "Open Cookbook",
-  storageKey: "open-cookbook:data:v1"
+  apiBaseUrl: "http://localhost:8080/api/cookbook.php"
 };

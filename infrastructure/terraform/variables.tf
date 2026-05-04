@@ -20,3 +20,9 @@ variable "route53_zone_id" {
   type        = string
   default     = ""
 }
+
+variable "cookbook_table_name" {
+  description = "DynamoDB table name for the single cookbook document."
+  type        = string
+  default     = ""
+}
